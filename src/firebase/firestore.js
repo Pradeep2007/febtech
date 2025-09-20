@@ -139,3 +139,31 @@ export const getTeam = async () => {
     throw error;
   }
 };
+
+// Contact Messages Collection
+export const contactsCollection = collection(db, "contacts");
+
+export const addContactMessage = async (contactData) => {
+  try {
+    const docRef = await addDoc(contactsCollection, {
+      ...contactData,
+      createdAt: new Date(),
+      status: "new", // new, read, replied
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding contact message:", error);
+    throw error;
+  }
+};
+
+export const getContactMessages = async () => {
+  try {
+    const q = query(contactsCollection, orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error getting contact messages:", error);
+    throw error;
+  }
+};
