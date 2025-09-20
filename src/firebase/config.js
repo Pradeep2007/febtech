@@ -7,12 +7,12 @@ import { getStorage } from "firebase/storage";
 // Replace with your actual Firebase config
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCue3OGDwQausn51c9Q74FWnXHKoFZocgk",
-  authDomain: "medical-b88b1.firebaseapp.com",
-  projectId: "medical-b88b1",
-  storageBucket: "medical-b88b1.firebasestorage.app",
-  messagingSenderId: "457601945829",
-  appId: "1:457601945829:web:2eacaae80b7ea353e5040c",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
