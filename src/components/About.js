@@ -71,7 +71,7 @@ const About = () => {
             className="text-center text-white"
           >
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              About MediCare
+              About FebTech
             </h1>
             <p className="text-xl md:text-2xl text-light-teal max-w-3xl mx-auto">
               Founded in 2008, we are a leading provider of medical supplies and
