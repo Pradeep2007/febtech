@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
   Mail,
@@ -13,6 +13,7 @@ import {
 import toast from "react-hot-toast";
 import { addContactMessage } from "../firebase/firestore";
 import { sendContactNotification } from "../utils/emailService";
+import { runFirebaseDiagnostics } from "../utils/firebaseDebug";
 
 function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,20 +24,45 @@ function Contact() {
     reset,
   } = useForm();
 
+  // Run Firebase diagnostics on component mount (only in development)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 Running Firebase diagnostics...');
+      runFirebaseDiagnostics();
+    }
+  }, []);
+
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Save to Firestore
-      await addContactMessage(data);
+      console.log('📤 Submitting contact form...');
+      
+      // Save to Firestore with enhanced error handling
+      const docId = await addContactMessage(data);
+      console.log('✅ Firestore save successful, document ID:', docId);
 
       // Send email notification to admin
-      await sendContactNotification(data);
+      try {
+        await sendContactNotification(data);
+        console.log('✅ Email notification sent successfully');
+      } catch (emailError) {
+        console.warn('⚠️ Email notification failed, but form data was saved:', emailError);
+        // Don't fail the entire operation if email fails
+      }
 
       toast.success("Message sent successfully! We'll get back to you soon.");
       reset();
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message. Please try again.");
+      console.error("❌ Error sending message:", error);
+      
+      // Use the enhanced error message if available
+      const errorMessage = error.message || "Failed to send message. Please try again.";
+      toast.error(errorMessage);
+      
+      // Log additional debugging info
+      if (error.originalError) {
+        console.error("Original error:", error.originalError);
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -2,16 +2,16 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
-  Filter,
   Plus,
   Edit,
   Trash2,
   Package,
   Pill,
 } from "lucide-react";
-import { getProducts, deleteProduct } from "../firebase/firestore";
+import { getProducts, deleteProduct, addProduct, updateProduct } from "../firebase/firestore";
 import ProductModal from "./ProductModal";
 import toast from "react-hot-toast";
+import { testProductOperations, quickProductTest } from "../utils/productTest";
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -160,6 +160,40 @@ const Products = () => {
     }
   };
 
+  const handleTestProducts = async () => {
+    try {
+      toast.loading("Running product tests...");
+      const success = await testProductOperations();
+      if (success) {
+        toast.success("All product tests passed!");
+        // Refresh products list
+        const productsData = await getProducts();
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+      } else {
+        toast.error("Some product tests failed. Check console for details.");
+      }
+    } catch (error) {
+      console.error("Test error:", error);
+      toast.error("Product test failed: " + error.message);
+    }
+  };
+
+  const handleQuickTest = async () => {
+    try {
+      toast.loading("Running quick test...");
+      await quickProductTest();
+      toast.success("Quick test passed!");
+      // Refresh products list
+      const productsData = await getProducts();
+      setProducts(productsData);
+      setFilteredProducts(productsData);
+    } catch (error) {
+      console.error("Quick test error:", error);
+      toast.error("Quick test failed: " + error.message);
+    }
+  };
+
   const handleEdit = (product) => {
     setEditingProduct(product);
     setShowModal(true);
@@ -175,27 +209,48 @@ const Products = () => {
     setEditingProduct(null);
   };
 
-  const handleProductSave = (productData) => {
-    if (editingProduct) {
-      // Update existing product
-      setProducts(
-        products.map((p) =>
-          p.id === editingProduct.id ? { ...p, ...productData } : p
-        )
-      );
-      toast.success("Product updated successfully");
-    } else {
-      // Add new product
-      const newProduct = {
-        id: Date.now().toString(),
-        ...productData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setProducts([...products, newProduct]);
-      toast.success("Product added successfully");
+  const handleProductSave = async (productData) => {
+    try {
+      if (editingProduct) {
+        // Update existing product in Firestore
+        console.log('🔄 Updating product in Firestore...', editingProduct.id);
+        await updateProduct(editingProduct.id, productData);
+        
+        // Update local state
+        setProducts(
+          products.map((p) =>
+            p.id === editingProduct.id ? { ...p, ...productData } : p
+          )
+        );
+        toast.success("Product updated successfully");
+        console.log('✅ Product updated successfully');
+      } else {
+        // Add new product to Firestore
+        console.log('🔄 Adding new product to Firestore...', productData);
+        const docId = await addProduct(productData);
+        
+        // Add to local state with the Firestore document ID
+        const newProduct = {
+          id: docId,
+          ...productData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        setProducts([...products, newProduct]);
+        toast.success("Product added successfully");
+        console.log('✅ Product added successfully with ID:', docId);
+      }
+      handleModalClose();
+    } catch (error) {
+      console.error('❌ Error saving product:', error);
+      const errorMessage = error.message || "Failed to save product. Please try again.";
+      toast.error(errorMessage);
+      
+      // Log additional debugging info
+      if (error.originalError) {
+        console.error("Original error:", error.originalError);
+      }
     }
-    handleModalClose();
   };
 
   if (loading) {
@@ -284,13 +339,27 @@ const Products = () => {
                 {isAdmin ? "Exit Admin" : "Admin Mode"}
               </button>
               {isAdmin && (
-                <button
-                  onClick={handleAddNew}
-                  className="btn-primary flex items-center space-x-2"
-                >
-                  <Plus size={16} />
-                  <span>Add Product</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleAddNew}
+                    className="btn-primary flex items-center space-x-2"
+                  >
+                    <Plus size={16} />
+                    <span>Add Product</span>
+                  </button>
+                  <button
+                    onClick={handleQuickTest}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Quick Test
+                  </button>
+                  <button
+                    onClick={handleTestProducts}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Full Test
+                  </button>
+                </>
               )}
             </div>
           </div>
