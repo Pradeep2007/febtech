@@ -11,9 +11,18 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "./config";
+import { withRetry, handleFirestoreError, checkNetworkConnectivity } from "../utils/networkRetry";
 
-// Products Collection
-export const productsCollection = collection(db, "products");
+// Products Collection - Initialize only when db is available
+export const getProductsCollection = () => {
+  if (!db) {
+    throw new Error("Firestore database is not initialized");
+  }
+  return collection(db, "products");
+};
+
+// For backward compatibility
+export const productsCollection = db ? collection(db, "products") : null;
 
 export const getProducts = async () => {
   try {
@@ -42,28 +51,85 @@ export const getProduct = async (id) => {
 
 export const addProduct = async (productData) => {
   try {
-    const docRef = await addDoc(productsCollection, {
-      ...productData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    // Check if db is initialized
+    if (!db) {
+      throw new Error("Firestore database is not initialized. Please check your Firebase configuration.");
+    }
+
+    console.log('🔄 Attempting to add product to Firestore...');
+    console.log('📝 Product data:', productData);
+    
+    // Check network connectivity first
+    const isConnected = await checkNetworkConnectivity();
+    if (!isConnected) {
+      throw new Error('No internet connection detected. Please check your network and try again.');
+    }
+    
+    // Use retry mechanism for the Firestore operation
+    const docRef = await withRetry(async () => {
+      const collection = getProductsCollection();
+      return await addDoc(collection, {
+        ...productData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }, 3, 1000); // 3 retries with 1 second base delay
+    
+    console.log('✅ Product added successfully with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error("Error adding product:", error);
-    throw error;
+    console.error("❌ Error adding product:", error);
+    
+    // Use enhanced error handling
+    const errorInfo = handleFirestoreError(error);
+    console.error("💡 Suggestion:", errorInfo.suggestion);
+    
+    // Re-throw with user-friendly message
+    const enhancedError = new Error(errorInfo.userMessage);
+    enhancedError.originalError = error;
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 };
 
 export const updateProduct = async (id, productData) => {
   try {
-    const docRef = doc(db, "products", id);
-    await updateDoc(docRef, {
-      ...productData,
-      updatedAt: new Date(),
-    });
+    // Check if db is initialized
+    if (!db) {
+      throw new Error("Firestore database is not initialized. Please check your Firebase configuration.");
+    }
+
+    console.log('🔄 Attempting to update product in Firestore...', id);
+    console.log('📝 Product data:', productData);
+    
+    // Check network connectivity first
+    const isConnected = await checkNetworkConnectivity();
+    if (!isConnected) {
+      throw new Error('No internet connection detected. Please check your network and try again.');
+    }
+    
+    // Use retry mechanism for the Firestore operation
+    await withRetry(async () => {
+      const docRef = doc(db, "products", id);
+      return await updateDoc(docRef, {
+        ...productData,
+        updatedAt: new Date(),
+      });
+    }, 3, 1000); // 3 retries with 1 second base delay
+    
+    console.log('✅ Product updated successfully');
   } catch (error) {
-    console.error("Error updating product:", error);
-    throw error;
+    console.error("❌ Error updating product:", error);
+    
+    // Use enhanced error handling
+    const errorInfo = handleFirestoreError(error);
+    console.error("💡 Suggestion:", errorInfo.suggestion);
+    
+    // Re-throw with user-friendly message
+    const enhancedError = new Error(errorInfo.userMessage);
+    enhancedError.originalError = error;
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 };
 
@@ -145,15 +211,43 @@ export const contactsCollection = collection(db, "contacts");
 
 export const addContactMessage = async (contactData) => {
   try {
-    const docRef = await addDoc(contactsCollection, {
-      ...contactData,
-      createdAt: new Date(),
-      status: "new", // new, read, replied
-    });
+    // Check if db is initialized
+    if (!db) {
+      throw new Error("Firestore database is not initialized. Please check your Firebase configuration.");
+    }
+
+    console.log('🔄 Attempting to save contact message to Firestore...');
+    console.log('📝 Contact data:', contactData);
+    
+    // Check network connectivity first
+    const isConnected = await checkNetworkConnectivity();
+    if (!isConnected) {
+      throw new Error('No internet connection detected. Please check your network and try again.');
+    }
+    
+    // Use retry mechanism for the Firestore operation
+    const docRef = await withRetry(async () => {
+      return await addDoc(contactsCollection, {
+        ...contactData,
+        createdAt: new Date(),
+        status: "new", // new, read, replied
+      });
+    }, 3, 1000); // 3 retries with 1 second base delay
+    
+    console.log('✅ Contact message saved successfully with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error("Error adding contact message:", error);
-    throw error;
+    console.error("❌ Error adding contact message:", error);
+    
+    // Use enhanced error handling
+    const errorInfo = handleFirestoreError(error);
+    console.error("💡 Suggestion:", errorInfo.suggestion);
+    
+    // Re-throw with user-friendly message
+    const enhancedError = new Error(errorInfo.userMessage);
+    enhancedError.originalError = error;
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 };
 
